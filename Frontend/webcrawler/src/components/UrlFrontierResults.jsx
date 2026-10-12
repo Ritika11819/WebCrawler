@@ -216,8 +216,14 @@ export function UrlFrontierResults({ crawlResult, onSelectLinkDetail }) {
             ) : (
               <div className="empty-results-glass">
                 <AlertCircle size={24} />
-                <span>No URLs match "{filterQuery}"</span>
-                <button className="reset-filter-btn" onClick={() => setFilterQuery('')}>Clear Filter</button>
+                <span>
+                  {links.length === 0
+                    ? `No neighbour URLs found in database for "${crawlResult?.seedUrl || 'seed URL'}".`
+                    : `No URLs match "${filterQuery}"`}
+                </span>
+                {filterQuery && (
+                  <button className="reset-filter-btn" onClick={() => setFilterQuery('')}>Clear Filter</button>
+                )}
               </div>
             )}
           </div>

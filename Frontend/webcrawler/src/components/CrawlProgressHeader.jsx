@@ -25,19 +25,19 @@ export function CrawlProgressHeader({ crawlResult, isCrawling, progressPct }) {
           <div className="metric-chip">
             <Activity size={14} />
             <span>
-              <strong>{crawlResult ? crawlResult.totalDiscovered : Math.floor((progressPct / 100) * 24)}</strong> Sub-URLs
+              <strong>{crawlResult ? crawlResult.totalDiscovered : (isCrawling ? '...' : 0)}</strong> Sub-URLs
             </span>
           </div>
           <div className="metric-chip">
             <Clock size={14} />
             <span>
-              <strong>{crawlResult ? `${crawlResult.avgResponseTimeMs}ms` : '42ms'}</strong> Latency
+              <strong>{crawlResult ? `${crawlResult.avgResponseTimeMs}ms` : '--'}</strong> Latency
             </span>
           </div>
           <div className="metric-chip accent">
             <Zap size={14} />
             <span>
-              <strong>{crawlResult ? crawlResult.totalOccurrences.toLocaleString() : '1,840'}</strong> Total Hits
+              <strong>{crawlResult ? crawlResult.totalOccurrences.toLocaleString() : (isCrawling ? '...' : 0)}</strong> Total Hits
             </span>
           </div>
         </div>

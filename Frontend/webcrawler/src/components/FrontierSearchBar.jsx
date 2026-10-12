@@ -2,14 +2,6 @@ import React, { useState } from 'react';
 import { Search, Globe, X, SlidersHorizontal, ArrowRight, Sparkles, RefreshCw, CheckCircle2, Flame, Compass } from 'lucide-react';
 import searchGenieLogo from '../assets/logo.png';
 
-const POPULAR_SEEDS = [
-  { name: 'GitHub', url: 'https://github.com' },
-  { name: 'Wikipedia', url: 'https://wikipedia.org' },
-  { name: 'Hacker News', url: 'https://news.ycombinator.com' },
-  { name: 'MDN Docs', url: 'https://developer.mozilla.org' },
-  { name: 'Stack Overflow', url: 'https://stackoverflow.com' },
-];
-
 export function FrontierSearchBar({
   urlQuery,
   onUrlQueryChange,
@@ -34,10 +26,14 @@ export function FrontierSearchBar({
   };
 
   const handleLucky = () => {
-    const random = POPULAR_SEEDS[Math.floor(Math.random() * POPULAR_SEEDS.length)].url;
-    onUrlQueryChange(random);
-    setValidationError('');
-    onStartCrawl(random, crawlDepth);
+    if (shortcuts && shortcuts.length > 0) {
+      const random = shortcuts[Math.floor(Math.random() * shortcuts.length)].frontierUrl;
+      onUrlQueryChange(random);
+      setValidationError('');
+      onStartCrawl(random, crawlDepth);
+    } else {
+      setValidationError('No seeds in database yet. Enter a URL above to start crawling.');
+    }
   };
 
   const handleSelectSeed = (url) => {
@@ -198,23 +194,25 @@ export function FrontierSearchBar({
         </div>
       )}
 
-      {/* Popular Sites */}
-      <div className="google-seed-presets-wrap">
-        <span className="presets-label">Popular:</span>
-        <div className="presets-chip-row">
-          {POPULAR_SEEDS.map((seed) => (
-            <button
-              key={seed.name}
-              type="button"
-              className="preset-chip-apple-glass"
-              onClick={() => handleSelectSeed(seed.url)}
-            >
-              <Globe size={12} className="preset-globe" />
-              <span>{seed.name}</span>
-            </button>
-          ))}
+      {/* Database Shortcuts as Quick Presets */}
+      {shortcuts && shortcuts.length > 0 && (
+        <div className="google-seed-presets-wrap">
+          <span className="presets-label">From Database:</span>
+          <div className="presets-chip-row">
+            {shortcuts.slice(0, 5).map((seed) => (
+              <button
+                key={seed.id || seed.domain}
+                type="button"
+                className="preset-chip-apple-glass"
+                onClick={() => handleSelectSeed(seed.frontierUrl)}
+              >
+                <Globe size={12} className="preset-globe" />
+                <span>{seed.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

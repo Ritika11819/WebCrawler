@@ -13,19 +13,26 @@ public class CrawlerServiceImplementation {
     CrawlerRepositoryService crawlerRepositoryService;
 
     public List<String> bfs(String seedUrl){
-        List<String> links=new ArrayList<>();
-        HashMap<String,Boolean> visited=new HashMap<>();
-        Queue<String> frontierQueue=new LinkedList<>();
+        List<String> links = new ArrayList<>();
+        if (seedUrl == null || seedUrl.trim().isEmpty()) {
+            return links;
+        }
+
+        HashMap<String, Boolean> visited = new HashMap<>();
+        Queue<String> frontierQueue = new LinkedList<>();
         frontierQueue.add(seedUrl);
-        visited.put(seedUrl,true);
+        visited.put(seedUrl, true);
 
         while(!frontierQueue.isEmpty()){
-            String currentUrl=frontierQueue.poll();
-            for(String neighbour : crawlerRepositoryService.getNeighbors(currentUrl)){
-                if(!visited.containsKey(neighbour) || !visited.get(neighbour)){
-                    frontierQueue.add(neighbour);
-                    links.add(neighbour);
-                    visited.put(neighbour,true);
+            String currentUrl = frontierQueue.poll();
+            List<String> neighbours = crawlerRepositoryService.getNeighbors(currentUrl);
+            if (neighbours != null) {
+                for(String neighbour : neighbours){
+                    if(!visited.containsKey(neighbour) || !visited.get(neighbour)){
+                        frontierQueue.add(neighbour);
+                        links.add(neighbour);
+                        visited.put(neighbour, true);
+                    }
                 }
             }
         }

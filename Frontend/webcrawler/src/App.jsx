@@ -7,10 +7,7 @@ import { CrawlProgressHeader } from './components/CrawlProgressHeader';
 import { UrlFrontierResults } from './components/UrlFrontierResults';
 import { UrlDetailDrawer } from './components/UrlDetailDrawer';
 import {
-  getStoredShortcuts,
-  updateShortcutFrequency,
   executeCrawlRequest,
-  generateFrontierCrawlResults,
   fetchShortcutsFromBackend,
 } from './services/crawlerService';
 import './App.css';
@@ -26,33 +23,37 @@ function App() {
   const [progressPct, setProgressPct] = useState(0);
   const [crawlResult, setCrawlResult] = useState(null);
 
-  const [shortcuts, setShortcuts] = useState(getStoredShortcuts());
+  const [shortcuts, setShortcuts] = useState([]);
   const [selectedLinkDetail, setSelectedLinkDetail] = useState(null);
 
-  useEffect(() => {
-    // Try to load shortcuts from backend /shortcuts endpoint (falls back to localStorage)
-    fetchShortcutsFromBackend().then((backendShortcuts) => {
+  const loadShortcuts = async () => {
+    try {
+      const backendShortcuts = await fetchShortcutsFromBackend();
       if (backendShortcuts && backendShortcuts.length > 0) {
         setShortcuts(backendShortcuts);
       }
-    });
+    } catch (e) {
+      console.warn('Could not load shortcuts from backend database', e);
+    }
+  };
+
+  useEffect(() => {
+    // Load shortcuts from backend database /shortcuts endpoint
+    loadShortcuts();
   }, []);
 
   const handleStartCrawl = async (targetUrl, depth = crawlDepth) => {
     if (!targetUrl || isCrawling) return;
 
     setIsCrawling(true);
-    setProgressPct(10);
-
-    const updatedShortcuts = updateShortcutFrequency(targetUrl);
-    setShortcuts(updatedShortcuts);
+    setProgressPct(15);
 
     const progressTimer = setInterval(() => {
       setProgressPct((prev) => {
         if (prev >= 90) { clearInterval(progressTimer); return 90; }
-        return prev + Math.floor(Math.random() * 20) + 10;
+        return prev + 15;
       });
-    }, 180);
+    }, 120);
 
     try {
       const result = await executeCrawlRequest(targetUrl, { depth });
@@ -62,7 +63,10 @@ function App() {
         setCrawlResult(result.data);
         setIsCrawling(false);
         setActiveTab('overview');
-      }, 300);
+      }, 200);
+
+      // Refresh shortcuts from backend /shortcuts database endpoint
+      loadShortcuts();
     } catch (err) {
       clearInterval(progressTimer);
       setIsCrawling(false);
