@@ -1,5 +1,6 @@
 package com.webcrawler.webcrawler.service;
 
+import com.webcrawler.webcrawler.model.Frequency;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

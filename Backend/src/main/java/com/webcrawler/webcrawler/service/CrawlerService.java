@@ -7,4 +7,5 @@ import java.util.List;
 @Service
 public interface CrawlerService {
     public List<String> bfs(String seedUrl, List<String> urls);
+    public List<String> getMostFrequentlyCrawled();
 }

@@ -1,7 +1,7 @@
 package com.webcrawler.webcrawler.controller;
 
+import com.webcrawler.webcrawler.model.Frequency;
 import com.webcrawler.webcrawler.model.URL;
-import com.webcrawler.webcrawler.service.CrawlerRepositoryService;
 import com.webcrawler.webcrawler.service.CrawlerServiceImplementation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +17,19 @@ public class CrawlerController {
     @Autowired
     CrawlerServiceImplementation crawlerServiceImplementation;
 
+    @Autowired
+    Frequency frequency;
+
     @GetMapping("/neighbours")
     public ResponseEntity<List<String>> getNeighbors(@RequestBody URL seedUrl){
+        frequency.insertURL(seedUrl);
         List<String> neighbour=crawlerServiceImplementation.bfs(seedUrl.getUrl());
         return ResponseEntity.ok(neighbour);
+    }
+
+    @GetMapping("/shortcuts")
+    public ResponseEntity<List<URL>> getShortcuts(){
+        List<URL> shortcut=frequency.getTopFive();
+        return ResponseEntity.ok(shortcut);
     }
 }
