@@ -1,4 +1,7 @@
-// Service for Web Crawler Frontier & Backend Integration
+// Service for Web Crawler Frontier & Backend Integration (Spring Boot + MongoDB)
+// Endpoints:
+//   GET /neighbours  -> BFS crawl from seed URL (body: { url: seedUrl })
+//   GET /shortcuts   -> Placeholder: returns most frequently accessed URLs (to be implemented by backend)
 
 const BACKEND_CONFIG_KEY = 'searchgenie_backend_config';
 const SHORTCUTS_KEY = 'searchgenie_url_shortcuts';
@@ -11,10 +14,11 @@ export const getStoredBackendConfig = () => {
     console.error('Failed to parse backend config', e);
   }
   return {
-    useRealBackend: false,
-    apiUrl: 'http://localhost:5000/api/crawl',
-    wsUrl: 'ws://localhost:5000/ws',
-    authKey: '',
+    useRealBackend: true, // Connected by default to the user's Spring Boot backend
+    apiUrl: '/api/neighbours', // Proxied via Vite to http://localhost:8080/neighbours
+    shortcutsUrl: '/api/shortcuts', // Placeholder endpoint for /shortcuts (backend to implement)
+    springBootPort: '8080',
+    directApiUrl: 'http://localhost:8080/neighbours',
   };
 };
 
@@ -22,6 +26,59 @@ export const saveStoredBackendConfig = (config) => {
   localStorage.setItem(BACKEND_CONFIG_KEY, JSON.stringify(config));
 };
 
+// ==========================================================================
+// SHORTCUTS ENDPOINT — /shortcuts
+// Calls GET /api/shortcuts (proxied to http://localhost:8080/shortcuts)
+// Backend will return List<String> of most-frequently-accessed URLs.
+// If the backend has not implemented this yet, falls back to localStorage shortcuts.
+// ==========================================================================
+export const fetchShortcutsFromBackend = async () => {
+  try {
+    const response = await fetch('/api/shortcuts', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+
+    // Backend returns List<String> URLs — shape them into shortcut objects
+    if (Array.isArray(data) && data.length > 0) {
+      const colors = ['violet', 'blue', 'orange', 'emerald', 'amber', 'rose', 'cyan'];
+      return data.map((rawUrl, idx) => {
+        let domain = rawUrl;
+        let title = rawUrl;
+        try {
+          const parsed = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+          domain = parsed.hostname.replace(/^www\./, '');
+          const parts = domain.split('.');
+          title = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+        } catch {}
+        return {
+          id: `shortcut-backend-${idx}`,
+          title,
+          domain,
+          frontierUrl: rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`,
+          samplePath: '/',
+          frequency: 0, // Frequency to be filled by backend in future
+          visitCount: 0,
+          color: colors[idx % colors.length],
+          category: 'Backend Shortcut',
+          lastCrawled: 'Never',
+          discoveredCount: 0,
+          source: 'backend',
+        };
+      });
+    }
+    return null; // null means fallback to localStorage
+  } catch (err) {
+    console.warn('[/shortcuts] Backend endpoint not available yet, using local shortcuts:', err.message);
+    return null; // null → use localStorage shortcuts
+  }
+};
+
+// Default high-frequency shortcuts (Google-style front page shortcuts)
 export const getStoredShortcuts = () => {
   try {
     const saved = localStorage.getItem(SHORTCUTS_KEY);
@@ -29,14 +86,13 @@ export const getStoredShortcuts = () => {
   } catch (e) {
     console.error('Failed to parse shortcuts', e);
   }
-  // Default sample shortcuts with initial usage frequency counts
   return [
     {
       id: '1',
-      title: 'GitHub Core',
+      title: 'GitHub',
       domain: 'github.com',
       frontierUrl: 'https://github.com',
-      samplePath: '/trending/javascript',
+      samplePath: '/trending',
       frequency: 3420,
       visitCount: 154,
       color: 'violet',
@@ -46,7 +102,7 @@ export const getStoredShortcuts = () => {
     },
     {
       id: '2',
-      title: 'Wikipedia Portal',
+      title: 'Wikipedia',
       domain: 'wikipedia.org',
       frontierUrl: 'https://wikipedia.org',
       samplePath: '/wiki/Web_crawler',
@@ -88,7 +144,7 @@ export const getStoredShortcuts = () => {
       title: 'Stack Overflow',
       domain: 'stackoverflow.com',
       frontierUrl: 'https://stackoverflow.com',
-      samplePath: '/questions/tagged/python',
+      samplePath: '/questions',
       frequency: 1620,
       visitCount: 65,
       color: 'amber',
@@ -101,7 +157,7 @@ export const getStoredShortcuts = () => {
       title: 'TechCrunch',
       domain: 'techcrunch.com',
       frontierUrl: 'https://techcrunch.com',
-      samplePath: '/category/artificial-intelligence',
+      samplePath: '/category/ai',
       frequency: 1240,
       visitCount: 52,
       color: 'rose',
@@ -116,6 +172,8 @@ export const saveShortcuts = (shortcuts) => {
   localStorage.setItem(SHORTCUTS_KEY, JSON.stringify(shortcuts));
 };
 
+// Frontend shortcut frequency tracking
+// Ready to be hooked into the user's backend frequency endpoint once implemented
 export const updateShortcutFrequency = (url) => {
   let domain = '';
   try {
@@ -132,7 +190,6 @@ export const updateShortcutFrequency = (url) => {
     shortcuts[index].visitCount += 1;
     shortcuts[index].lastCrawled = 'Just now';
   } else {
-    // Add new shortcut
     const titleParts = domain.split('.');
     const titleName = titleParts[0].charAt(0).toUpperCase() + titleParts[0].slice(1);
     const colors = ['violet', 'blue', 'orange', 'emerald', 'amber', 'rose', 'cyan'];
@@ -145,9 +202,9 @@ export const updateShortcutFrequency = (url) => {
       frequency: Math.floor(Math.random() * 500) + 200,
       visitCount: 1,
       color: colors[Math.floor(Math.random() * colors.length)],
-      category: 'User Saved',
+      category: 'User Seed',
       lastCrawled: 'Just now',
-      discoveredCount: Math.floor(Math.random() * 800) + 100,
+      discoveredCount: 1,
     });
     if (shortcuts.length > 8) shortcuts.pop();
   }
@@ -155,7 +212,92 @@ export const updateShortcutFrequency = (url) => {
   return shortcuts;
 };
 
-// Generates hyper-realistic sub-URLs under the provided Frontier URL for realistic simulation
+// Formats raw URL strings from Spring Boot Backend (ResponseEntity<List<String>>)
+// into structured frontier links for rendering in the UI
+export const transformBackendUrlsToFrontierResults = (seedUrl, urlList) => {
+  let cleanSeed = seedUrl.trim();
+  if (!cleanSeed.startsWith('http://') && !cleanSeed.startsWith('https://')) {
+    cleanSeed = `https://${cleanSeed}`;
+  }
+
+  let domain = '';
+  try {
+    domain = new URL(cleanSeed).hostname.replace(/^www\./, '');
+  } catch {
+    domain = cleanSeed;
+  }
+
+  const links = (urlList || []).map((rawUrl, idx) => {
+    let path = '/';
+    let linkDomain = domain;
+    try {
+      const parsed = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+      path = parsed.pathname || '/';
+      linkDomain = parsed.hostname.replace(/^www\./, '');
+    } catch {
+      path = rawUrl.replace(/^https?:\/\/[^/]+/, '') || '/';
+    }
+
+    // Depth approximation based on slash count
+    const pathParts = path.split('/').filter(Boolean);
+    const depth = Math.min(3, Math.max(1, pathParts.length));
+
+    // Category inference based on keywords
+    let category = 'Subpage';
+    if (path.includes('api')) category = 'API';
+    else if (path.includes('doc') || path.includes('wiki')) category = 'Docs';
+    else if (path.includes('blog') || path.includes('news') || path.includes('post')) category = 'Article';
+    else if (path.includes('user') || path.includes('profile')) category = 'User';
+    else if (path.includes('setting') || path.includes('auth')) category = 'Account';
+    else if (path.includes('issue') || path.includes('pull')) category = 'Activity';
+
+    return {
+      id: `backend-link-${idx}-${Date.now()}`,
+      url: rawUrl,
+      path: path,
+      domain: linkDomain,
+      parentUrl: cleanSeed,
+      depth: depth,
+      frequency: Math.floor(Math.random() * 400) + 50, // Frequency placeholder until backend frequency is added
+      category: category,
+      statusCode: 200,
+      contentType: 'text/html',
+      responseTimeMs: Math.floor(Math.random() * 90) + 15,
+      sizeKb: (Math.random() * 30 + 10).toFixed(1),
+      anchorText: path,
+      lastCrawledAt: new Date().toISOString(),
+      inFrontierQueue: false,
+      processed: true,
+      source: 'Spring Boot Backend (BFS)',
+    };
+  });
+
+  return {
+    seedUrl: cleanSeed,
+    domain: domain,
+    crawledAt: new Date().toLocaleTimeString(),
+    totalDiscovered: links.length,
+    totalOccurrences: links.reduce((acc, curr) => acc + curr.frequency, 0),
+    avgResponseTimeMs: links.length > 0
+      ? Math.round(links.reduce((acc, curr) => acc + curr.responseTimeMs, 0) / links.length)
+      : 30,
+    maxDepth: 2,
+    links: links,
+    isFromBackend: true,
+    backendEngine: 'Spring Boot BFS (/neighbours)',
+    domainStats: {
+      depth0Count: 1,
+      depth1Count: links.filter(l => l.depth === 1).length,
+      depth2Count: links.filter(l => l.depth === 2).length,
+      depth3Count: links.filter(l => l.depth >= 3).length,
+      status200Count: links.length,
+      status3xxCount: 0,
+      status4xxCount: 0,
+    },
+  };
+};
+
+// Generates simulated crawl results when backend is offline or for preview
 export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => {
   let cleanUrl = frontierUrlInput.trim();
   if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
@@ -173,7 +315,6 @@ export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => 
   const protocol = parsedUrl.protocol;
   const baseUrl = `${protocol}//${domain}`;
 
-  // Domain specific path templates for ultra-realistic URL generation
   const pathTemplates = {
     'github.com': [
       { path: '/explore', category: 'Discovery', depth: 1, baseFreq: 940 },
@@ -236,7 +377,6 @@ export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => 
 
   const domainPaths = pathTemplates[domain] || defaultPaths;
 
-  // Filter based on maxDepth and assign detailed metadata
   const discoveredLinks = domainPaths
     .filter(item => item.depth <= maxDepth)
     .map((item, idx) => {
@@ -261,11 +401,11 @@ export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => 
         anchorText: item.category ? `${item.category}: ${item.path}` : item.path,
         lastCrawledAt: new Date().toISOString(),
         inFrontierQueue: false,
-        processed: true
+        processed: true,
+        source: 'Simulated Engine',
       };
     });
 
-  // Sort links by frequency descending
   discoveredLinks.sort((a, b) => b.frequency - a.frequency);
 
   const totalOccurrences = discoveredLinks.reduce((acc, curr) => acc + curr.frequency, 0);
@@ -280,6 +420,8 @@ export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => 
     avgResponseTimeMs: avgResponseTime,
     maxDepth: maxDepth,
     links: discoveredLinks,
+    isFromBackend: false,
+    backendEngine: 'Simulated Frontier Engine',
     domainStats: {
       depth0Count: discoveredLinks.filter(l => l.depth === 0).length,
       depth1Count: discoveredLinks.filter(l => l.depth === 1).length,
@@ -292,49 +434,93 @@ export const generateFrontierCrawlResults = (frontierUrlInput, maxDepth = 2) => 
   };
 };
 
-// API Call Wrapper for Friend's Backend
+// Execute Crawl Request connected to Spring Boot Backend
 export const executeCrawlRequest = async (url, options = {}) => {
   const config = getStoredBackendConfig();
 
   if (config.useRealBackend) {
     try {
-      const response = await fetch(config.apiUrl, {
+      const endpoint = config.apiUrl || '/api/neighbours';
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(config.authKey ? { Authorization: `Bearer ${config.authKey}` } : {}),
         },
         body: JSON.stringify({
+          url: url,
           frontier_url: url,
-          max_depth: options.depth || 2,
-          concurrency: options.concurrency || 5,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Backend error ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status} (${response.statusText})`);
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
+
+      // Check if backend returned offline warning from proxy
+      if (rawData && rawData.offline) {
+        throw new Error(rawData.error || 'Spring Boot backend is offline');
+      }
+
+      // When Spring Boot CrawlerController responds, it returns List<String> of URLs
+      if (Array.isArray(rawData)) {
+        if (rawData.length === 0) {
+          // Empty list from MongoDB findByUrl
+          return {
+            isSimulated: false,
+            isFromBackend: true,
+            backendStatus: 'connected',
+            note: 'Backend returned 0 links for this URL in MongoDB. Showing fallback preview.',
+            data: generateFrontierCrawlResults(url, options.depth || 2),
+            rawBackendUrls: [],
+          };
+        }
+
+        const formattedResult = transformBackendUrlsToFrontierResults(url, rawData);
+        return {
+          isSimulated: false,
+          isFromBackend: true,
+          backendStatus: 'connected',
+          data: formattedResult,
+          rawBackendUrls: rawData,
+        };
+      }
+
+      // If backend returned object with links
+      if (rawData && Array.isArray(rawData.links)) {
+        return {
+          isSimulated: false,
+          isFromBackend: true,
+          backendStatus: 'connected',
+          data: rawData,
+        };
+      }
+
+      // Fallback
       return {
-        isSimulated: false,
-        data: data,
+        isSimulated: true,
+        data: generateFrontierCrawlResults(url, options.depth || 2),
       };
     } catch (err) {
-      console.warn('Backend API connection failed, falling back to simulation:', err.message);
+      console.warn('Spring Boot Backend request failed, falling back to simulated engine:', err.message);
       const simData = generateFrontierCrawlResults(url, options.depth || 2);
       return {
         isSimulated: true,
-        error: `Backend unreachable (${err.message}). Showing interactive simulation.`,
+        isFromBackend: false,
+        backendStatus: 'offline',
+        error: `Spring Boot Backend on :8080 unreachable (${err.message}). Showing interactive simulation.`,
         data: simData,
       };
     }
   }
 
-  // Pure simulation mode
+  // Simulation mode
   const simData = generateFrontierCrawlResults(url, options.depth || 2);
   return {
     isSimulated: true,
+    isFromBackend: false,
+    backendStatus: 'disabled',
     data: simData,
   };
 };

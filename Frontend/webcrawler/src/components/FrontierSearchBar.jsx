@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Search, Globe, ArrowRight, Zap, SlidersHorizontal, RefreshCw, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Search, Globe, X, SlidersHorizontal, ArrowRight, Sparkles, RefreshCw, CheckCircle2, Flame, Compass } from 'lucide-react';
+import searchGenieLogo from '../assets/logo.png';
 
-const PRESET_SEEDS = [
-  { name: 'GitHub', url: 'https://github.com', category: 'Dev' },
-  { name: 'Wikipedia', url: 'https://wikipedia.org', category: 'Knowledge' },
-  { name: 'HackerNews', url: 'https://news.ycombinator.com', category: 'Tech' },
-  { name: 'MDN Web Docs', url: 'https://developer.mozilla.org', category: 'Docs' },
-  { name: 'StackOverflow', url: 'https://stackoverflow.com', category: 'Q&A' },
-  { name: 'TechCrunch', url: 'https://techcrunch.com', category: 'News' },
+const POPULAR_SEEDS = [
+  { name: 'GitHub', url: 'https://github.com' },
+  { name: 'Wikipedia', url: 'https://wikipedia.org' },
+  { name: 'Hacker News', url: 'https://news.ycombinator.com' },
+  { name: 'MDN Docs', url: 'https://developer.mozilla.org' },
+  { name: 'Stack Overflow', url: 'https://stackoverflow.com' },
 ];
 
 export function FrontierSearchBar({
@@ -17,114 +17,112 @@ export function FrontierSearchBar({
   isCrawling,
   crawlDepth,
   onChangeDepth,
+  shortcuts = [],
+  onCrawlShortcut,
 }) {
   const [showOptions, setShowOptions] = useState(false);
   const [validationError, setValidationError] = useState('');
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!urlQuery.trim()) {
-      setValidationError('Please enter a valid frontier seed URL (e.g. https://github.com)');
+      setValidationError('Please enter a URL to crawl (e.g., https://github.com)');
       return;
     }
     setValidationError('');
     onStartCrawl(urlQuery, crawlDepth);
   };
 
-  const handleSelectPreset = (presetUrl) => {
-    onUrlQueryChange(presetUrl);
+  const handleLucky = () => {
+    const random = POPULAR_SEEDS[Math.floor(Math.random() * POPULAR_SEEDS.length)].url;
+    onUrlQueryChange(random);
     setValidationError('');
-    onStartCrawl(presetUrl, crawlDepth);
+    onStartCrawl(random, crawlDepth);
   };
 
+  const handleSelectSeed = (url) => {
+    onUrlQueryChange(url);
+    setValidationError('');
+    onStartCrawl(url, crawlDepth);
+  };
+
+  const topShortcuts = [...shortcuts]
+    .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+    .slice(0, 6);
+
   return (
-    <div className="search-section-container">
-      {/* Hero Headline */}
-      <div className="hero-text-block">
-        <div className="hero-badge-glass">
-          <Zap size={14} className="badge-icon-glow" />
-          <span>SearchGenie Crawler Engine</span>
+    <div className="google-search-center-container">
+      {/* Centered Logo */}
+      <div className="google-logo-wrapper">
+        <div className="logo-liquid-backdrop" />
+        <img src={searchGenieLogo} alt="SearchGenie" className="google-center-logo" />
+        <div className="logo-sparkle-pill">
+          <Sparkles size={12} className="sparkle-icon" />
+          <span>Web Intelligence Engine</span>
         </div>
-        <h1 className="hero-title">
-          Explore the <em>Frontier.</em> Map Every Link.
-        </h1>
-        <p className="hero-subtitle">
-          Enter any root URL below. SearchGenie crawls the web frontier, extracts all sub-urls residing under it,
-          and tracks link usage frequency in real time.
-        </p>
       </div>
 
-      {/* Main Spotlight Search Bar */}
-      <form className={`frontier-search-bar-glass ${isCrawling ? 'crawling-active' : ''}`} onSubmit={handleSubmit}>
-        <div className="search-icon-wrap">
-          <Globe className="search-globe-icon" size={22} />
+      {/* Search Bar */}
+      <form className={`google-search-bar-glass ${isCrawling ? 'crawling-active' : ''}`} onSubmit={handleSubmit}>
+        <div className="search-bar-prefix-icon">
+          <Search size={20} className="search-icon-svg" />
         </div>
-
-        <div className="search-input-wrap">
+        <div className="search-input-flex-wrap">
           <input
             type="text"
-            className="frontier-url-input"
+            className="google-search-input"
             value={urlQuery}
-            onChange={(e) => {
-              onUrlQueryChange(e.target.value);
-              if (validationError) setValidationError('');
-            }}
-            placeholder="Paste or type Frontier Seed URL (e.g., https://github.com)..."
-            aria-label="Frontier Seed URL"
+            onChange={(e) => { onUrlQueryChange(e.target.value); if (validationError) setValidationError(''); }}
+            placeholder="Enter a URL to explore (e.g., https://github.com)"
+            aria-label="URL to crawl"
             disabled={isCrawling}
+            autoComplete="off"
+            spellCheck="false"
           />
         </div>
 
-        {/* Depth & Advanced Options Toggle */}
+        {urlQuery && !isCrawling && (
+          <button type="button" className="search-clear-btn" onClick={() => onUrlQueryChange('')} title="Clear">
+            <X size={16} />
+          </button>
+        )}
+
         <button
           type="button"
-          className={`search-options-btn ${showOptions ? 'active' : ''}`}
+          className={`search-depth-pill-btn ${showOptions ? 'active' : ''}`}
           onClick={() => setShowOptions(!showOptions)}
-          title="Crawler Depth & Speed Controls"
+          title="Crawl depth"
         >
-          <SlidersHorizontal size={18} />
-          <span className="depth-badge">Depth {crawlDepth}</span>
+          <SlidersHorizontal size={15} />
+          <span className="depth-label">Depth {crawlDepth}</span>
         </button>
 
-        {/* Crawl Action Button */}
         <button
           type="submit"
-          className={`start-crawl-btn ${isCrawling ? 'loading' : ''}`}
+          className={`google-search-submit-btn ${isCrawling ? 'loading' : ''}`}
           disabled={isCrawling}
+          title="Start crawl"
         >
-          {isCrawling ? (
-            <>
-              <RefreshCw size={18} className="spinner-icon" />
-              <span>Crawling Frontier...</span>
-            </>
-          ) : (
-            <>
-              <span>Crawl Frontier</span>
-              <ArrowRight size={18} className="btn-arrow" />
-            </>
-          )}
+          {isCrawling ? <RefreshCw size={17} className="spinner-icon" /> : <ArrowRight size={17} />}
         </button>
       </form>
 
       {validationError && (
-        <div className="validation-error-glass">
-          <span>{validationError}</span>
-        </div>
+        <div className="validation-error-glass"><span>{validationError}</span></div>
       )}
 
-      {/* Advanced Crawl Options Drawer */}
+      {/* Depth Options */}
       {showOptions && (
-        <div className="advanced-options-glass glass-card-interactive">
-          <div className="options-title">
-            <span>Frontier Crawling Parameters</span>
-            <span className="options-subtitle">Customize traversal depth for sub-URL discovery</span>
+        <div className="advanced-options-glass apple-liquid-modal">
+          <div className="options-title-row">
+            <span className="options-title">Crawl Depth</span>
+            <span className="options-subtitle">How many link hops to follow</span>
           </div>
-
           <div className="depth-selector-grid">
             {[
-              { level: 1, label: 'Depth 1 (Direct Subpages)', desc: 'Fast (~15-25 sub-urls under root path)' },
-              { level: 2, label: 'Depth 2 (Subpages + 2nd Tier)', desc: 'Recommended (~40-80 URLs, detailed hierarchy)' },
-              { level: 3, label: 'Depth 3 (Deep Frontier Crawl)', desc: 'Deep traversal (~150+ sub-urls)' },
+              { level: 1, label: 'Depth 1 — Direct links', desc: 'Fast, surface-level crawl' },
+              { level: 2, label: 'Depth 2 — Standard', desc: 'Recommended for most sites' },
+              { level: 3, label: 'Depth 3 — Deep crawl', desc: 'Comprehensive multi-hop' },
             ].map((item) => (
               <button
                 key={item.level}
@@ -141,29 +139,78 @@ export function FrontierSearchBar({
               </button>
             ))}
           </div>
+        </div>
+      )}
 
-          <div className="options-footer">
-            <span className="footer-tip">
-              <ShieldCheck size={14} /> Respects robots.txt politeness policies and deduplicates Frontier URL queues.
-            </span>
+      {/* Action Buttons */}
+      <div className="google-action-buttons-row">
+        <button
+          type="button"
+          className="google-action-btn primary-glass-btn"
+          onClick={() => handleSubmit()}
+          disabled={isCrawling}
+        >
+          {isCrawling ? (
+            <><RefreshCw size={15} className="spinner-icon" /><span>Crawling...</span></>
+          ) : (
+            <><Search size={15} /><span>Search</span></>
+          )}
+        </button>
+        <button
+          type="button"
+          className="google-action-btn secondary-glass-btn"
+          onClick={handleLucky}
+          disabled={isCrawling}
+          title="Crawl a random popular site"
+        >
+          <Compass size={15} />
+          <span>I'm Feeling Lucky</span>
+        </button>
+      </div>
+
+      {/* Shortcuts Grid */}
+      {topShortcuts.length > 0 && (
+        <div className="google-shortcuts-section">
+          <div className="shortcuts-strip-header">
+            <Flame size={14} className="flame-icon-glow" />
+            <span>Frequently Visited</span>
+          </div>
+          <div className="google-shortcuts-grid">
+            {topShortcuts.map((item) => (
+              <button
+                key={item.id || item.domain}
+                type="button"
+                className="google-shortcut-tile-glass"
+                onClick={() => onCrawlShortcut(item.frontierUrl)}
+                title={item.domain}
+              >
+                <div className="shortcut-icon-circle">
+                  <span className="shortcut-avatar-letter">{item.title.charAt(0)}</span>
+                  {item.frequency > 0 && (
+                    <span className="shortcut-freq-pill">{item.frequency}</span>
+                  )}
+                </div>
+                <span className="shortcut-tile-title">{item.title}</span>
+                <span className="shortcut-tile-domain">{item.domain}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Preset Seed Shortcuts */}
-      <div className="preset-seeds-container">
-        <span className="preset-label">Try a Frontier Seed:</span>
-        <div className="preset-chips-scroll">
-          {PRESET_SEEDS.map((preset) => (
+      {/* Popular Sites */}
+      <div className="google-seed-presets-wrap">
+        <span className="presets-label">Popular:</span>
+        <div className="presets-chip-row">
+          {POPULAR_SEEDS.map((seed) => (
             <button
-              key={preset.name}
+              key={seed.name}
               type="button"
-              className="preset-chip-glass"
-              onClick={() => handleSelectPreset(preset.url)}
+              className="preset-chip-apple-glass"
+              onClick={() => handleSelectSeed(seed.url)}
             >
-              <Globe size={13} className="chip-globe" />
-              <span className="chip-name">{preset.name}</span>
-              <span className="chip-cat">{preset.category}</span>
+              <Globe size={12} className="preset-globe" />
+              <span>{seed.name}</span>
             </button>
           ))}
         </div>

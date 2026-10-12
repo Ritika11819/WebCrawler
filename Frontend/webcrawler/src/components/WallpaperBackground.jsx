@@ -18,7 +18,7 @@ export function WallpaperBackground({
   intervalSeconds = 6,
 }) {
   const [blurLevel, setBlurLevel] = useState(0); // 0px to 20px extra blur
-  const [dimLevel, setDimLevel] = useState(35); // 0% to 70% dim overlay
+  const [dimLevel, setDimLevel] = useState(18); // 0% to 70% dim overlay (tuned for Apple liquid glass)
   const [showControls, setShowControls] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
 

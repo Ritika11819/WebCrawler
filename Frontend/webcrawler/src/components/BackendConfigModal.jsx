@@ -82,41 +82,28 @@ export function BackendConfigModal({ isOpen, onClose, onConfigSaved }) {
           {/* API URL Inputs */}
           <div className="form-group">
             <label className="form-label">
-              <span>Backend REST Crawl Endpoint</span>
-              <small className="form-hint">Expected POST payload: {"{ frontier_url, max_depth }"}</small>
+              <span>Spring Boot REST Crawl Endpoint</span>
+              <small className="form-hint">Spring Boot Controller: @GetMapping("/neighbours") on port 8080</small>
             </label>
             <input
               type="text"
               className="glass-input"
               value={config.apiUrl}
               onChange={(e) => setConfig({ ...config, apiUrl: e.target.value })}
-              placeholder="http://localhost:5000/api/crawl"
+              placeholder="/api/neighbours"
             />
           </div>
 
           <div className="form-group">
             <label className="form-label">
-              <span>WebSocket Stream URL (Optional for live updates)</span>
+              <span>Direct Spring Boot Host URL (Optional)</span>
             </label>
             <input
               type="text"
               className="glass-input"
-              value={config.wsUrl}
-              onChange={(e) => setConfig({ ...config, wsUrl: e.target.value })}
-              placeholder="ws://localhost:5000/ws"
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">
-              <span>API Key / Bearer Token (If required)</span>
-            </label>
-            <input
-              type="password"
-              className="glass-input"
-              value={config.authKey}
-              onChange={(e) => setConfig({ ...config, authKey: e.target.value })}
-              placeholder="Optional Bearer token..."
+              value={config.directApiUrl || 'http://localhost:8080/neighbours'}
+              onChange={(e) => setConfig({ ...config, directApiUrl: e.target.value })}
+              placeholder="http://localhost:8080/neighbours"
             />
           </div>
 
